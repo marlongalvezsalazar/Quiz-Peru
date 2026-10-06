@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUIZ PERÚ</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+    background:#6fb3e8;
+    color:#1d2b1f;
+    height:100dvh;
+  }
+
+  /* ---------- PAISAJE ---------- */
+  .layer{position:fixed;inset:0;pointer-events:none}
+  .layer svg{width:100%;height:100%;display:block}
+  #back{z-index:0}
+  #clouds-a{z-index:1;overflow:hidden}
+  #front{z-index:3}
+  #clouds-b{z-index:4;overflow:hidden}
+
+  .cloud{
+    position:absolute;left:0;top:var(--t);
+    width:var(--w);height:calc(var(--w)*.32);
+    background:
+      radial-gradient(ellipse 30% 50% at 25% 62%,#fff 55%,transparent 100%),
+      radial-gradient(ellipse 28% 72% at 50% 44%,#fff 55%,transparent 100%),
+      radial-gradient(ellipse 30% 55% at 76% 60%,#fff 55%,transparent 100%),
+      radial-gradient(ellipse 46% 34% at 50% 76%,#fff 50%,transparent 100%);
+    filter:blur(5px);
+    opacity:var(--o,.85);
+    animation:drift var(--d) linear infinite;
+    animation-delay:var(--dl);
+    will-change:transform;
+  }
+  @keyframes drift{
+    from{transform:translateX(-110%)}
+    to{transform:translateX(calc(100vw + 10%))}
+  }
+  @media (prefers-reduced-motion:reduce){.cloud{animation-duration:240s}}
+
+  /* ---------- INTERFAZ ---------- */
+  #app{
+    position:fixed;inset:0;z-index:10;
+    display:flex;align-items:center;justify-content:center;
+    padding:min(3vh,20px) 14px;
+  }
+  .card{
+    width:min(100%,560px);
+    max-height:100%;
+    background:rgba(255,255,255,.88);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    border:3px solid #fff;
+    border-radius:22px;
+    box-shadow:0 12px 40px rgba(0,30,60,.35);
+    padding:clamp(14px,3.2vh,28px) clamp(16px,4vw,30px);
+    text-align:center;
+    display:none;
+  }
+  .card.show{display:block;animation:pop .35s ease}
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+
+  h1{
+    font-size:clamp(34px,8vh,56px);
+    letter-spacing:2px;
+    color:#d91023;
+    text-shadow:0 2px 0 #fff,0 4px 10px rgba(0,0,0,.2);
+    line-height:1;
+  }
+  h1 span{color:#1d2b1f}
+  .sub{margin:clamp(8px,2vh,14px) 0 clamp(10px,2.4vh,18px);font-size:clamp(14px,2.4vh,18px);line-height:1.4}
+  .rules{
+    list-style:none;text-align:left;display:inline-block;
+    font-size:clamp(13px,2.2vh,16px);line-height:1.6;margin-bottom:clamp(10px,2.4vh,18px);
+  }
+  .rules li::before{content:"✔ ";color:#d91023;font-weight:bold}
+
+  .btn{
+    font:inherit;font-weight:bold;cursor:pointer;
+    border:none;border-radius:14px;
+    padding:clamp(10px,2vh,14px) clamp(22px,5vw,34px);
+    font-size:clamp(17px,2.8vh,22px);
+    color:#fff;background:#d91023;
+    box-shadow:0 5px 0 #8f0a17;
+    transition:transform .08s,box-shadow .08s;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(4px);box-shadow:0 1px 0 #8f0a17}
+
+  .top{display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:clamp(13px,2.2vh,16px)}
+  .pill{background:#fff;border:2px solid #d91023;color:#d91023;border-radius:999px;padding:3px 12px}
+  .timer{margin:clamp(8px,1.8vh,14px) 0}
+  .track{height:14px;background:#e6e6e6;border-radius:999px;overflow:hidden;border:2px solid #fff;box-shadow:inset 0 1px 3px rgba(0,0,0,.25)}
+  .bar{height:100%;width:100%;background:linear-gradient(90deg,#2fb344,#f2c200);border-radius:999px}
+  .bar.low{background:linear-gradient(90deg,#f28a00,#d91023)}
+  .secs{font-size:clamp(13px,2.2vh,16px);margin-top:4px;font-weight:bold}
+
+  .q{font-size:clamp(18px,3.4vh,27px);line-height:1.25;margin:clamp(6px,1.6vh,12px) 0 clamp(10px,2.4vh,18px);font-weight:bold}
+  .q em{font-style:normal;color:#d91023}
+  .opts{display:grid;gap:clamp(8px,1.8vh,14px)}
+  .opt{
+    font:inherit;font-weight:bold;cursor:pointer;
+    font-size:clamp(17px,3vh,23px);
+    padding:clamp(12px,2.4vh,18px) 12px;
+    border-radius:14px;border:3px solid #1d2b1f22;
+    background:#fff;color:#1d2b1f;
+    box-shadow:0 4px 0 #0002;
+    transition:transform .08s,background .15s;
+  }
+  .opt:hover:not(:disabled){background:#fff3d6;transform:translateY(-2px)}
+  .opt:disabled{cursor:default}
+  .opt.ok{background:#2fb344;color:#fff;border-color:#1f8a31}
+  .opt.bad{background:#d91023;color:#fff;border-color:#8f0a17}
+  .fb{min-height:1.5em;margin-top:clamp(6px,1.6vh,12px);font-weight:bold;font-size:clamp(14px,2.4vh,18px)}
+
+  .score{font-size:clamp(40px,10vh,72px);font-weight:bold;color:#d91023;line-height:1;margin:clamp(6px,1.6vh,12px) 0}
+  .stats{display:flex;gap:10px;justify-content:center;margin-bottom:clamp(8px,1.8vh,14px)}
+  .stat{flex:1;border-radius:14px;padding:clamp(6px,1.4vh,10px);color:#fff;font-weight:bold}
+  .stat b{display:block;font-size:clamp(24px,5vh,36px);line-height:1.1}
+  .stat.g{background:#2fb344}.stat.r{background:#d91023}
+  .msg{font-size:clamp(14px,2.5vh,19px);margin-bottom:clamp(8px,1.8vh,12px)}
+  .list{list-style:none;text-align:left;font-size:clamp(12px,2vh,15px);margin-bottom:clamp(10px,2vh,16px);background:#fff8;border-radius:12px;padding:6px 10px}
+  .list li{padding:2px 0;display:flex;justify-content:space-between;gap:8px}
+  .list .y{color:#1f8a31;font-weight:bold}.list .n{color:#d91023;font-weight:bold}
+</style>
+</head>
+<body>
+
+<!-- Paisaje de fondo -->
+<div class="layer" id="back" aria-hidden="true">
+  <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#4f9de0"/>
+        <stop offset=".55" stop-color="#9fd0f0"/>
+        <stop offset="1" stop-color="#f4ecd0"/>
+      </linearGradient>
+      <radialGradient id="sun" cx="22%" cy="16%" r="40%">
+        <stop offset="0" stop-color="#fff8d6" stop-opacity=".95"/>
+        <stop offset="1" stop-color="#fff8d6" stop-opacity="0"/>
+      </radialGradient>
+      <clipPath id="hill">
+        <path d="M-50 900 L-50 650 Q200 605 420 565 Q640 525 860 548 Q990 562 1060 640 L1110 900 Z"/>
+      </clipPath>
+    </defs>
+    <rect width="1600" height="900" fill="url(#sky)"/>
+    <rect width="1600" height="900" fill="url(#sun)"/>
+    <!-- montañas lejanas -->
+    <path d="M0 520 L120 400 L260 470 L400 360 L560 450 L700 380 L860 470 L1000 400 L1200 300 L1400 420 L1600 360 L1600 900 L0 900Z" fill="#9dbbd0" opacity=".85"/>
+    <path d="M0 600 L180 470 L330 540 L520 440 L700 540 L900 460 L1100 520 L1300 430 L1600 540 L1600 900 L0 900Z" fill="#7aa3b5"/>
+    <!-- cerro Machu Picchu (izquierda) -->
+    <path d="M-50 720 Q100 470 300 430 Q460 405 570 490 Q700 545 820 630 L820 900 L-50 900Z" fill="#527f3f"/>
+    <path d="M300 430 Q460 405 570 490 Q700 545 820 630 L820 700 Q620 560 470 520 Q380 470 300 430Z" fill="#6c9a4c" opacity=".7"/>
+    <!-- montaña derecha -->
+    <path d="M1250 900 L1300 570 Q1400 430 1500 505 L1600 560 L1600 900Z" fill="#4a7a3c"/>
+    <!-- Huayna Picchu -->
+    <path d="M930 720 L985 470 Q1010 360 1050 300 Q1085 250 1115 232 Q1140 250 1165 320 Q1200 410 1230 520 L1330 760 L1330 900 L930 900Z" fill="#3f6b34"/>
+    <path d="M1115 232 Q1140 250 1165 320 Q1200 410 1230 520 L1330 760 L1330 900 L1180 900 L1150 500 Z" fill="#26441f" opacity=".55"/>
+    <path d="M1050 300 Q1085 250 1115 232 L1100 330 L1060 480 L985 470Z" fill="#6fa14b" opacity=".6"/>
+    <!-- ciudadela: colina + terrazas + casas -->
+    <path d="M-50 900 L-50 650 Q200 605 420 565 Q640 525 860 548 Q990 562 1060 640 L1110 900 Z" fill="#5f8f35"/>
+    <g clip-path="url(#hill)" id="terraces"></g>
+  </svg>
+</div>
+
+<div class="layer" id="clouds-a" aria-hidden="true">
+  <div class="cloud" style="--t:6vh;--w:520px;--d:95s;--dl:-20s;--o:.9"></div>
+  <div class="cloud" style="--t:22vh;--w:380px;--d:70s;--dl:-55s;--o:.8"></div>
+  <div class="cloud" style="--t:36vh;--w:640px;--d:120s;--dl:-90s;--o:.75"></div>
+  <div class="cloud" style="--t:14vh;--w:300px;--d:60s;--dl:-8s;--o:.85"></div>
+</div>
+
+<div class="layer" id="front" aria-hidden="true">
+  <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 900 L0 835 Q200 795 400 835 Q650 785 900 835 Q1200 795 1600 845 L1600 900Z" fill="#2f5a23"/>
+    <path d="M0 900 L0 868 Q300 840 600 872 Q1000 845 1300 872 Q1500 855 1600 870 L1600 900Z" fill="#244a1b"/>
+    <g fill="#3a6b2b">
+      <circle cx="120" cy="848" r="22"/><circle cx="150" cy="852" r="18"/>
+      <circle cx="1380" cy="852" r="24"/><circle cx="1415" cy="856" r="18"/>
+      <circle cx="760" cy="850" r="16"/>
+    </g>
+  </svg>
+</div>
+
+<div class="layer" id="clouds-b" aria-hidden="true">
+  <div class="cloud" style="--t:52vh;--w:700px;--d:80s;--dl:-30s;--o:.7"></div>
+  <div class="cloud" style="--t:66vh;--w:520px;--d:105s;--dl:-70s;--o:.6"></div>
+  <div class="cloud" style="--t:30vh;--w:440px;--d:50s;--dl:-35s;--o:.55"></div>
+  <div class="cloud" style="--t:78vh;--w:800px;--d:140s;--dl:-10s;--o:.5"></div>
+</div>
+
+<!-- Interfaz -->
+<main id="app">
+
+  <section class="card show" id="s-start">
+    <h1>QUIZ <span>PERÚ</span></h1>
+    <p class="sub">¿Cuánto sabes de las capitales de los departamentos del Perú?</p>
+    <ul class="rules">
+      <li>5 preguntas al azar</li>
+      <li>2 alternativas: solo una es correcta</li>
+      <li>Tienes 3 segundos para responder</li>
+      <li>Si no respondes a tiempo, cuenta como incorrecta</li>
+    </ul>
+    <div><button class="btn" id="btn-start">¡Jugar!</button></div>
+  </section>
+
+  <section class="card" id="s-quiz">
+    <div class="top">
+      <span class="pill" id="q-num">Pregunta 1 de 5</span>
+      <span class="pill" id="q-score">Puntos: 0</span>
+    </div>
+    <div class="timer">
+      <div class="track"><div class="bar" id="bar"></div></div>
+      <div class="secs" id="secs">3</div>
+    </div>
+    <p class="q" id="q-text"></p>
+    <div class="opts" id="opts"></div>
+    <p class="fb" id="fb"></p>
+  </section>
+
+  <section class="card" id="s-end">
+    <h1>¡Resultado!</h1>
+    <div class="score" id="e-score">0/5</div>
+    <div class="stats">
+      <div class="stat g"><b id="e-ok">0</b>Correctas</div>
+      <div class="stat r"><b id="e-bad">0</b>Incorrectas</div>
+    </div>
+    <p class="msg" id="e-msg"></p>
+    <ul class="list" id="e-list"></ul>
+    <button class="btn" id="btn-again">Jugar otra vez</button>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  /* ---------- Paisaje: terrazas y casitas (se generan una vez) ---------- */
+  (function buildLandscape(){
+    var NS="http://www.w3.org/2000/svg", g=document.getElementById("terraces");
+    function el(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);g.appendChild(e);return e}
+    var seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+    var greens=["#6b9a3a","#7fae48","#5f8f35","#86b64e"];
+    function slope(x){return -(x+50)/1200*95}          // inclinación de las terrazas
+    for(var i=0;i<14;i++){
+      var y0=548+i*26;
+      el("polygon",{points:"-50,"+(y0+70)+" 1150,"+(y0-25)+" 1150,"+(y0+1)+" -50,"+(y0+96),fill:greens[i%4]});
+      el("line",{x1:-50,y1:y0+96,x2:1150,y2:y0+1,stroke:"#c2bba8","stroke-width":3,opacity:.9});
+    }
+    var houses=[];
+    for(var n=0;n<46;n++){
+      var band=1+Math.floor(rnd()*8),x=170+rnd()*780;
+      var y=548+band*26+70+slope(x)+8;
+      houses.push({x:x,y:y,w:24+rnd()*22,h:13+rnd()*8});
+    }
+    houses.sort(function(a,b){return a.y-b.y});
+    houses.forEach(function(h){
+      el("rect",{x:h.x,y:h.y-h.h,width:h.w,height:h.h,fill:"#cfc7b3",stroke:"#8d8672","stroke-width":1});
+      el("polygon",{points:(h.x-3)+","+(h.y-h.h)+" "+(h.x+h.w/2)+","+(h.y-h.h-11)+" "+(h.x+h.w+3)+","+(h.y-h.h),fill:"#a8803f"});
+    });
+    // plaza central
+    el("ellipse",{cx:560,cy:720,rx:130,ry:20,fill:"#8fbf5a",opacity:.9});
+  })();
+
+  /* ---------- Datos: departamento → capital ---------- */
+  var DATA=[
+    ["Amazonas","Chachapoyas"],["Áncash","Huaraz"],["Apurímac","Abancay"],["Arequipa","Arequipa"],
+    ["Ayacucho","Ayacucho"],["Cajamarca","Cajamarca"],["Callao","Callao"],["Cusco","Cusco"],
+    ["Huancavelica","Huancavelica"],["Huánuco","Huánuco"],["Ica","Ica"],["Junín","Huancayo"],
+    ["La Libertad","Trujillo"],["Lambayeque","Chiclayo"],["Lima","Lima"],["Loreto","Iquitos"],
+    ["Madre de Dios","Puerto Maldonado"],["Moquegua","Moquegua"],["Pasco","Cerro de Pasco"],
+    ["Piura","Piura"],["Puno","Puno"],["San Martín","Moyobamba"],["Tacna","Tacna"],
+    ["Tumbes","Tumbes"],["Ucayali","Pucallpa"]
+  ];
+  var TOTAL=5, TIME=3000, FEEDBACK=1100;
+
+  function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+  function $(id){return document.getElementById(id)}
+  function show(id){["s-start","s-quiz","s-end"].forEach(function(s){$(s).classList.toggle("show",s===id)})}
+
+  var qs,idx,score,results,locked,deadline,timerId;
+
+  function buildQuestions(){
+    return shuffle(DATA).slice(0,TOTAL).map(function(p){
+      var pool=DATA.filter(function(d){return d[1]!==p[1]});
+      var wrong=pool[Math.floor(Math.random()*pool.length)][1];
+      return {dept:p[0],correct:p[1],opts:shuffle([p[1],wrong])};
+    });
+  }
+
+  function start(){
+    qs=buildQuestions();idx=0;score=0;results=[];
+    show("s-quiz");nextQuestion();
+  }
+
+  function nextQuestion(){
+    if(idx>=TOTAL){return finish()}
+    var q=qs[idx];locked=false;
+    $("q-num").textContent="Pregunta "+(idx+1)+" de "+TOTAL;
+    $("q-score").textContent="Puntos: "+score;
+    $("q-text").innerHTML="¿Cuál es la capital del departamento de <em>"+q.dept+"</em>?";
+    $("fb").textContent="";
+    var box=$("opts");box.innerHTML="";
+    q.opts.forEach(function(o){
+      var b=document.createElement("button");
+      b.className="opt";b.type="button";b.textContent=o;
+      b.addEventListener("click",function(){answer(o)});
+      box.appendChild(b);
+    });
+    deadline=Date.now()+TIME;
+    tick();
+    timerId=setInterval(tick,40);
+  }
+
+  function tick(){
+    var rem=Math.max(0,deadline-Date.now());
+    var bar=$("bar");
+    bar.style.width=(rem/TIME*100)+"%";
+    bar.classList.toggle("low",rem<1000);
+    $("secs").textContent=Math.ceil(rem/1000);
+    if(rem<=0){answer(null)}
+  }
+
+  function answer(choice){
+    if(locked)return;locked=true;
+    clearInterval(timerId);
+    var q=qs[idx],ok=(choice===q.correct);
+    if(ok)score++;
+    results.push({dept:q.dept,correct:q.correct,chosen:choice,ok:ok});
+    var btns=$("opts").querySelectorAll(".opt");
+    btns.forEach(function(b){
+      b.disabled=true;
+      if(b.textContent===q.correct)b.classList.add("ok");
+      else if(b.textContent===choice)b.classList.add("bad");
+    });
+    $("q-score").textContent="Puntos: "+score;
+    if(ok){$("fb").textContent="¡Correcto! +1 punto 🎉"}
+    else if(choice===null){$("secs").textContent="0";$("fb").textContent="⏰ ¡Se acabó el tiempo! La respuesta era "+q.correct}
+    else{$("fb").textContent="Incorrecto. La respuesta era "+q.correct}
+    idx++;
+    setTimeout(nextQuestion,FEEDBACK);
+  }
+
+  function finish(){
+    var bad=TOTAL-score;
+    $("e-score").textContent=score+"/"+TOTAL;
+    $("e-ok").textContent=score;
+    $("e-bad").textContent=bad;
+    var m=score===5?"¡Perfecto! Eres un verdadero explorador del Perú 🏔️"
+         :score>=4?"¡Excelente! Casi lo sabes todo 🌟"
+         :score>=3?"¡Muy bien! Sigue practicando 👍"
+         :score>=1?"¡Buen intento! Con práctica mejorarás 💪"
+         :"No te rindas, ¡inténtalo de nuevo! 🦙";
+    $("e-msg").textContent=m;
+    var ul=$("e-list");ul.innerHTML="";
+    results.forEach(function(r){
+      var li=document.createElement("li");
+      var left=document.createElement("span");
+      left.textContent=r.dept+" → "+r.correct;
+      var right=document.createElement("span");
+      right.className=r.ok?"y":"n";
+      right.textContent=r.ok?"✔ Correcta":(r.chosen===null?"✘ Sin respuesta":"✘ Incorrecta");
+      li.appendChild(left);li.appendChild(right);ul.appendChild(li);
+    });
+    show("s-end");
+  }
+
+  $("btn-start").addEventListener("click",start);
+  $("btn-again").addEventListener("click",start);
+})();
+</script>
+</body>
+</html>
